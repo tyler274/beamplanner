@@ -50,24 +50,28 @@ def parse(path):
 
 # Connection = (Color, SatId, UserId)
 
-def possible_connections(sats, users, colors, max_user_angle):
-    by_user = [[] for _ in range(len(users)+1)]
-    by_sat = [[] for _ in range(len(sats)+1)]
-    for sat_id, sat_pos in sats.items():
-        for user_id, user_pos in users.items():
+def possible_connections(sats_v, users_v, colors, max_user_angle):
+    by_user = [[] for _ in range(len(users_v)+1)]
+    by_sat = [[] for _ in range(len(sats_v)+1)]
+    for sat_id, sat_pos in enumerate(sats_v):
+        if sat_pos is None:
+            continue
+        for user_id, user_pos in enumerate(users_v):
+            if user_pos is None:
+                continue
             a = rad2deg(angle(user_pos, sub(sat_pos, user_pos)))
             if a < max_user_angle:
                 by_user[user_id].append(sat_id)
                 by_sat[sat_id].append(user_id)
     return by_sat, by_user
 
-def get_interferences(sats, users, conns_by_sat, min_beam_separation):
-    by_sat_user = [[[] for _ in range(len(users)+1)] for _ in range(len(sats)+1)]
+def get_interferences(sats_v, users_v, conns_by_sat, min_beam_separation):
+    by_sat_user = [[[] for _ in range(len(users_v)+1)] for _ in range(len(sats_v)+1)]
     for sat_id, sat_users in enumerate(conns_by_sat):
         for user1_id, user2_id in itertools.combinations(sat_users, 2):
             if rad2deg(angle(
-                sub(users[user1_id], sats[sat_id]),
-                sub(users[user2_id], sats[sat_id])
+                sub(users_v[user1_id], sats_v[sat_id]),
+                sub(users_v[user2_id], sats_v[sat_id])
             )) < min_beam_separation:
                 by_sat_user[sat_id][user1_id].append(user2_id)
                 by_sat_user[sat_id][user2_id].append(user1_id)
@@ -75,8 +79,15 @@ def get_interferences(sats, users, conns_by_sat, min_beam_separation):
 
 
 def _solve(users, sats, colors=4, max_user_angle=45, min_beam_separation=10, max_conn_per_sat=32):
-    conns_by_sat, conns_by_user = possible_connections(sats, users, colors=colors, max_user_angle=max_user_angle)
-    interference_by_sat_user = get_interferences(sats, users, conns_by_sat, min_beam_separation)
+    users_v = [None for _ in range(len(users)+1)]
+    for user_id, user_pos in users.items():
+        users_v[user_id] = user_pos
+    sats_v = [None for _ in range(len(sats)+1)]
+    for sat_id, sat_pos in sats.items():
+        sats_v[sat_id] = sat_pos
+
+    conns_by_sat, conns_by_user = possible_connections(sats_v, users_v, colors=colors, max_user_angle=max_user_angle)
+    interference_by_sat_user = get_interferences(sats_v, users_v, conns_by_sat, min_beam_separation)
 
     available_conns = set()
     for sat_id, sat_users in enumerate(conns_by_sat):
