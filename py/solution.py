@@ -1,124 +1,245 @@
-import collections
-import itertools
+from typing import Dict, List, Tuple
+from util import Color, Sat, User, Vector3
 import math
-import sys
+import random
 
-from util import Color, Vector3
+# Degrees
+MINIMUM_BEAM_ANGLE = 10
+MAX_ALLOWABLE_BEAM_ANGLE = 45
+MAX_ALLOWED_USERS = 32
+MAX_COLOR_OPTIONS = 4
 
-# utils
+random.seed()
 
-def vlen(v):
-    return math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
+def get_index_shifts(users: Dict[User, Vector3], sats: Dict[Sat, Vector3]) -> Tuple[int, int]:
+    """Get index shifts for satellite and users data."""
+    index_shift_sats = int(list(sats.keys())[0])    
+    index_shift_users = int(list(users.keys())[0])
+    return index_shift_sats, index_shift_users
 
-def normalize(v):
-    length = vlen(v)
-    return (v[0]/length, v[1]/length, v[2]/length)
+def color_next(color):
+    return (color % MAX_COLOR_OPTIONS) + 1
 
-def dot(a, b):
-    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+def sum_rows(valid_connections, rows, cols):
+    """
+    Calculates the sum of valid connections in each row of a matrix.
+    Args:
+        valid_connections (list): A 2D matrix representing the valid connections.
+        rows (int): The number of rows in the matrix.
+        cols (int): The number of columns in the matrix.
+    Returns:
+        list: A list containing the sum of valid connections in each row.
+    """
 
-def sub(a, b):
-    return (a[0]-b[0], a[1]-b[1], a[2]-b[2])
+    return [sum(1 for c in range(cols) if valid_connections[r][c] >= 1) for r in range(rows)]
 
-def angle(a, b):
-    return math.acos(dot(normalize(a), normalize(b)))
+def sum_cols(valid_connections, rows, cols):
+    """
+    Calculates the sum of valid connections for each column in a matrix.
+    Args:
+        valid_connections (list): A 2D matrix representing the valid connections.
+        rows (int): The number of rows in the matrix.
+        cols (int): The number of columns in the matrix.
+    Returns:
+        list: A list containing the sum of valid connections for each column.
+    """
 
-def rad2deg(x):
-    return x / math.pi * 180
+    return [sum(1 for r in range(rows) if valid_connections[r][c] >= 1) for c in range(cols)]
 
-# problem
+def initialize_valid_connections(n_sats: int, n_users: int) -> List[List[int]]:
+    """Initialize valid connections matrix."""
+    return [[0] * n_users for _ in range(n_sats)]
 
-def parse(path):
-    min = None
-    sats = {}
-    users = {}
-    with open(path, 'r') as f:
-         min = float(f.readline().split(" ")[1])
-         for line in f:
-             kind, id, x, y, z = line.strip().split(" ")
-             id = int(id)
-             x, y, z = float(x), float(y), float(z)
-             if kind == "user":
-                 users[id] = (x, y, z)
-             elif kind == "sat":
-                 sats[id] = (x, y, z)
-             else:
-                 raise Exception("couldn't parse", line)
-    return min, sats, users
+def calculate_beam_angle(user: Vector3, sat: Vector3) -> float:
+    """Calculate the beam angle between a user and a satellite."""
+    center = Vector3(0, 0, 0)
+    return 180 - user.angle_between(center, sat)
+4
+def sort_values(values, n_values, index_shift) -> List[Tuple[int, float, Vector3]]:
+    """Normalize Users and Sats and then sort by dot product."""
+    # Find the largest x, y, and z values for normalization
+    largest_x = max(abs(values[i + index_shift].x) for i in range(n_values))
+    largest_y = max(abs(values[i + index_shift].y) for i in range(n_values))
+    largest_z = max(abs(values[i + index_shift].z) for i in range(n_values))
 
-# solution
+    # Add a small epsilon to avoid division by zero
+    epsilon = 1e-10
+    scaling_vector = Vector3(largest_x + epsilon, largest_y + epsilon, largest_z + epsilon)
+    basis_vector = Vector3(1, 1, 1)
 
-# Connection = (Color, SatId, UserId)
+    sorted_values = []
+    for i in range(n_values):
+        value = values[i + index_shift]
+        normalized_value = Vector3(value.x / scaling_vector.x, value.y / scaling_vector.y, value.z / scaling_vector.z)
+        dot_prod = normalized_value.dot(basis_vector)
+        sorted_values.append((i + index_shift, dot_prod, value))
 
-def possible_connections(sats, users, colors, max_user_angle):
-    by_user = collections.defaultdict(set)
-    by_sat = collections.defaultdict(set)
-    for sat_id, sat_pos in sats.items():
-        for user_id, user_pos in users.items():
-            a = rad2deg(angle(user_pos, sub(sat_pos, user_pos)))
-            if a < max_user_angle:
-                by_user[user_id].add(sat_id)
-                by_sat[sat_id].add(user_id)
-    return by_sat, by_user
+    # Sort by the dot product in descending order
+    sorted_values.sort(key=lambda x: x[1], reverse=True)
+    return sorted_values
 
-def get_interferences(sats, users, conns_by_sat, min_beam_separation):
-    by_sat_user = collections.defaultdict(lambda: collections.defaultdict(set))
-    for sat_id, sat_users in conns_by_sat.items():
-        for user1_id, user2_id in itertools.combinations(sat_users, 2):
-            if rad2deg(angle(
-                sub(users[user1_id], sats[sat_id]),
-                sub(users[user2_id], sats[sat_id])
-            )) < min_beam_separation:
-                by_sat_user[sat_id][user1_id].add(user2_id)
-                by_sat_user[sat_id][user2_id].add(user1_id)
-    return by_sat_user
+def get_sorted_values(users: Dict[User, Vector3], sats: Dict[Sat, Vector3], index_shift_users: int, index_shift_sats: int) -> Tuple[List, List]:
+    """Sort and normalize users and satellites."""
+    n_users = len(users)
+    n_sats = len(sats)
+    users_sorted = sort_values(users, n_users, index_shift_users)
+    satellites_sorted = sort_values(sats, n_sats, index_shift_sats)
+    return users_sorted, satellites_sorted
 
 
-def _solve(users, sats, colors=4, max_user_angle=45, min_beam_separation=10, max_conn_per_sat=32):
-    conns_by_sat, conns_by_user = possible_connections(sats, users, colors=colors, max_user_angle=max_user_angle)
-    interference_by_sat_user = get_interferences(sats, users, conns_by_sat, min_beam_separation)
+def validate_sat_congestion(sats, users, valid_connections, sats_sorted, users_sorted, index_shift_sats, index_shift_users, shift_colors):
+    """(Pre)calculate the possible congestion between satellites and users, for valid configurations gemoetry-wise."""
+    for sat_tuple in sats_sorted:
+        sat_index = sat_tuple[0] - index_shift_sats
+        sat_vector = sats[sat_tuple[0]]
 
-    available_conns = set()
-    for sat_id, sat_users in conns_by_sat.items():
-        for user_id in sat_users:
-            for i in range(colors):
-                available_conns.add((i, sat_id, user_id))
-    solution_by_sat = collections.defaultdict(set)
-    solution = {} # user -> [sat, color]
-    while len(available_conns) > 0:
-        conn = available_conns.pop()
-        solution_by_sat[conn[1]].add(conn)
-        solution[conn[2]] = (conn[1], Color(conn[0]+1))
-        # dont add interfering connections
-        for user2_id in interference_by_sat_user[conn[1]][conn[2]]:
-            available_conns.discard((conn[0], conn[1], user2_id))
-        # don't reconnect the same user
-        for sat_id in conns_by_user[conn[2]]:
-            for i in range(colors):
-                available_conns.discard((i, sat_id, conn[2]))
-        # if satellite is at capacity, drop its remaining possible connections
-        if len(solution_by_sat[conn[1]]) >= max_conn_per_sat:
-            for i in range(colors):
-                for user_id in conns_by_sat[conn[1]]:
-                    available_conns.discard((i, conn[1], user_id))
+        # Construct a list with users that have valid connections to this satelite
+        users_with_valid_connections = [(user_tuple[0], user_tuple[1]) for user_tuple in users_sorted if valid_connections[sat_index][user_tuple[0] - index_shift_users] >= 1]
+
+        # Check each user against each other user pairwise to check if they interfere
+        for i, first_user_tuple in enumerate(users_with_valid_connections):
+            first_user_index = first_user_tuple[0] - index_shift_users
+            first_user_vector = users[first_user_tuple[0]]
+
+            for j in range(i + 1, len(users_with_valid_connections)):
+                second_user_index = users_with_valid_connections[j][0] - index_shift_users
+                second_user_vector = users[users_with_valid_connections[j][0]]
+
+                # Find the angle between the satellite and the two users
+                sat_user_angle = sat_vector.angle_between(first_user_vector, second_user_vector)
+
+                # If the angle is larger than the minimum needed, check if the users have the same color
+                if sat_user_angle < MINIMUM_BEAM_ANGLE:
+                    first_user_color = valid_connections[sat_index][first_user_index]
+                    second_user_color = valid_connections[sat_index][second_user_index]
+
+                    # If the users have the same color, remove the connection or shift the color
+                    if first_user_color == second_user_color:
+                        # mix up colors if needed
+                        if shift_colors:
+                            color = color_next(second_user_color)
+                            valid_connections[sat_index][second_user_index] = color
+                        else:
+                            valid_connections[sat_index][second_user_index] = 0
+
+def remove_excess_satelites_per_user(valid_connections, sorted_satellites, sorted_users, index_shift_sats):
+    """Remove users from satellites that have more than the allowed number of users."""
+    col_totals = sum_cols(valid_connections, len(sorted_satellites), len(sorted_users))
+
+    # Remove extraneous satelites per user, if more than one satelite is assigned
+    for user in range(len(sorted_users)):
+        user_sats = col_totals[user]
+
+        # User has extra sats
+        if user_sats > 1:
+            # Construct a list of all valid satelites for said user
+            valid_satelites = []
+            for satelite_tuple in sorted_satellites:
+                index_satelite = satelite_tuple[0] - index_shift_sats
+                # If the beam is valid, append a Tuple[satelite index, dot product] to the list
+                if valid_connections[index_satelite][user] >= 1:
+                    valid_satelites.append((satelite_tuple[0], satelite_tuple[1])) 
+
+            # Shuffle valid_satelites and select the first satelite, and the color for it. 
+            valid_satelites = sorted(valid_satelites, key=lambda x: random.random())
+            index_chosen = valid_satelites[0][0] - index_shift_sats
+            color = valid_connections[index_chosen][user]
+
+            # Remove all connections 
+            for satelite_tuple in valid_satelites:
+                index_satelite = satelite_tuple[0] - index_shift_sats
+                valid_connections[index_satelite][user] = 0
+
+            # Add back chosen connection
+            valid_connections[index_chosen][user] = color
+
+def remove_excess_users_per_satellite(valid_connections, sorted_sats, sorted_users):
+    """Remove excess users per satellite."""
+    row_totals = sum_rows(valid_connections, len(sorted_sats), len(sorted_users))
+
+    for s in range(len(sorted_sats)):
+        sat_users = row_totals[s]
+
+        # Satelite has more than 1 valid user
+        if sat_users > MAX_ALLOWED_USERS:
+            users_allocated = 0
+
+            # Searching users for valid connections
+            for u in range(len(sorted_users)):
+
+                # Found a valid connection
+                if valid_connections[s][u] >= 1:
+
+                    # Note the first connection found
+                    if users_allocated < MAX_ALLOWED_USERS:
+                        users_allocated += 1
+                    
+                    # Already have max users allocated
+                    else:
+                        # Remove connection
+                        valid_connections[s][u] = 0
+
+def format_solution(valid_connections, sats, users, index_shift_sats, index_shift_users):
+    """Format the solution dictionary."""
+    solution = {}
+    for u in range(len(users)):
+        for s in range(len(sats)):
+            if valid_connections[s][u] >= 1:
+                color = valid_connections[s][u]
+                solution[u + index_shift_users] = (s + index_shift_sats, color)
     return solution
 
-def solve(users, sats):
-    print("solving")
-    return _solve(
-        {i: (v.x,v.y,v.z) for i,v in users.items()},
-        {i: (v.x,v.y,v.z) for i,v in sats.items()},
-    )
-    print("solved")
+def initialize_colors(users, sats, users_sorted, sats_sorted, index_shift_users, index_shift_sats, valid_connections):
+    """Initialize colors for the valid connections matrix."""
 
-def main(in_path, out_path):
-    min, sats, users = parse(in_path)
-    #print(min, sats, users)
+    # Initially its 'A'
+    color = 1
 
-    solution = solve(users, sats)
+    for user_tuple in users_sorted:
+        user = users[user_tuple[0]]
 
+        for sat_tuple in sats_sorted:
+            sat = sats[sat_tuple[0]]
+            center = Vector3(0,0,0)
+            beam_angle = calculate_beam_angle(user, sat)
+            # Check if the beam angle is within the acceptable range
+            if beam_angle < MAX_ALLOWABLE_BEAM_ANGLE:
+                satellite_index = sat_tuple[0] - index_shift_sats
+                user_index = user_tuple[0] - index_shift_users
+                valid_connections[satellite_index][user_index] = color_next(color)
+    
 
-    #print("write", out_path)
+def solve(users: Dict[User, Vector3], sats: Dict[Sat, Vector3]) -> Dict[User, Tuple[Sat, Color]]:
+    """Assign users to satellites respecting all constraints."""
+    solution = {}
 
-if __name__== "__main__":
-   main(sys.argv[1], sys.argv[2])
+    # Get indexes for users and sats
+    index_shift_sats, index_shift_users = get_index_shifts(users, sats)
+
+    # Get sorted values
+    users_sorted, sats_sorted = get_sorted_values(users, sats, index_shift_users, index_shift_sats)
+
+    # Initialize valid connections matrix
+    valid_connections = initialize_valid_connections(len(sats), len(users))
+
+    # Initialize colors
+    initialize_colors(users, sats, users_sorted, sats_sorted, index_shift_users, index_shift_sats, valid_connections)
+    
+    # Remove excess users from satellites
+    remove_excess_satelites_per_user(valid_connections, sats_sorted, users_sorted, index_shift_sats)
+            
+    # Check beams from each (sorted) satellite for congestion
+    iterations = 2
+    shift_color = True # Rotate color 
+    for i in range(iterations):
+        validate_sat_congestion(sats, users, valid_connections, sats_sorted, users_sorted, index_shift_sats, index_shift_users, shift_color)
+    
+    shift_color = False
+    validate_sat_congestion(sats, users, valid_connections, sats_sorted, users_sorted, index_shift_sats, index_shift_users, shift_color)
+
+    remove_excess_users_per_satellite(valid_connections, sats_sorted, users_sorted)
+
+    # Format the solution
+    solution = format_solution(valid_connections, sats, users, index_shift_sats, index_shift_users)
+
+    return solution

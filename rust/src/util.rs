@@ -2,129 +2,106 @@ use core::fmt;
 use std::{
     fmt::{Display, Formatter},
     ops::{Add, Deref, Div, Sub},
+    simd::{num::SimdFloat, StdFloat},
 };
 
 use std::simd::f32x4;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Vector3 {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-}
+
+pub struct Vector3(f32x4);
+// pub struct Vector3 {
+//     pub x: f32,
+//     pub y: f32,
+//     pub z: f32,
+// }
 
 impl Vector3 {
     pub const fn new(x: f32, y: f32, z: f32) -> Self {
-        Self { x, y, z }
+        Self(f32x4::from_array([x, y, z, 0.0]))
     }
 
-    pub const fn dot(&self, other: Self) -> f32 {
-        self.x * other.x + self.y * other.y + self.z * other.z
+    pub fn dot(&self, other: Self) -> f32 {
+        let a = self.0 * other.0;
+        a.reduce_sum()
     }
 
-    pub const fn cross(&self, other: &Self) -> Self {
-        Self {
-            x: self.y * other.z - self.z * other.y,
-            y: self.z * other.x - self.x * other.z,
-            z: self.x * other.y - self.y * other.x,
-        }
-    }
+    //     pub const fn cross(&self, other: &Self) -> Self {
+    //         Self {
+    //             x: self.y * other.z - self.z * other.y,
+    //             y: self.z * other.x - self.x * other.z,
+    //             z: self.x * other.y - self.y * other.x,
+    //         }
+    //     }
 
     pub fn length(&self) -> f32 {
-        (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
+        (self.0 * self.0).reduce_sum().sqrt()
+        // (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
     }
 
     pub fn normalize(&self) -> Self {
         let length = self.length();
-        Self {
-            x: self.x / length,
-            y: self.y / length,
-            z: self.z / length,
-        }
+        Vector3(self.0 / f32x4::splat(length))
     }
 
     pub fn unit(&self) -> Self {
         let length = self.length();
-        Self {
-            x: self.x / length,
-            y: self.y / length,
-            z: self.z / length,
-        }
+        Vector3(self.0 / f32x4::splat(length))
     }
 
-    const fn _add(&self, other: &Self) -> Self {
-        Self {
-            x: self.x + other.x,
-            y: self.y + other.y,
-            z: self.z + other.z,
-        }
+    fn _add(&self, other: &Self) -> Self {
+        Self(self.0 + other.0)
     }
 
-    const fn _sub(&self, other: &Self) -> Self {
-        Self {
-            x: self.x - other.x,
-            y: self.y - other.y,
-            z: self.z - other.z,
-        }
+    fn _sub(&self, other: &Self) -> Self {
+        Self(self.0 - other.0)
     }
 
-    const fn _sub_de(&self, other: Self) -> Self {
-        Self {
-            x: self.x - other.x,
-            y: self.y - other.y,
-            z: self.z - other.z,
-        }
+    fn _sub_de(&self, other: Self) -> Self {
+        Self(self.0 - other.0)
     }
 
-    pub fn abs_difference(&self, other: &Self) -> Self {
-        Self {
-            x: (self.x - other.x).abs(),
-            y: (self.y - other.y).abs(),
-            z: (self.z - other.z).abs(),
-        }
-    }
+    //     pub fn abs_difference(&self, other: &Self) -> Self {
+    //         Self {
+    //             x: (self.x - other.x).abs(),
+    //             y: (self.y - other.y).abs(),
+    //             z: (self.z - other.z).abs(),
+    //         }
+    //     }
 
     pub fn vec_division(&self, other: &Self) -> Self {
-        Self {
-            x: self.x / other.x,
-            y: self.y / other.y,
-            z: self.z / other.z,
-        }
+        Self(self.0 / other.0)
     }
 
-    pub const fn scale(&self, scalar: f32) -> Self {
-        Self {
-            x: self.x * scalar,
-            y: self.y * scalar,
-            z: self.z * scalar,
-        }
+    pub fn scale(&self, scalar: f32) -> Self {
+        Self(self.0 * f32x4::splat(scalar))
     }
 
     pub fn angle_between(&self, a: &Self, c: &Self) -> f32 {
-        let m = (a - self).unit();
-        let n = (c - self).unit();
+        let m = Vector3(a.0 - self.0).unit();
+        let n = Vector3(c.0 - self.0).unit();
         let r = m.dot(n);
 
         r.acos().to_degrees()
     }
 
-    pub const fn zero() -> Self {
-        Self::new(0.0, 0.0, 0.0)
+    pub fn zero() -> Self {
+        Self(f32x4::splat(0.0))
     }
-    pub const fn one() -> Self {
-        Self::new(1.0, 1.0, 1.0)
-    }
-    pub const fn basis() -> Self {
-        Self::new(1.0, 1.0, 1.0)
-    }
-    pub fn normalize_with(&self, other: Self) -> Self {
-        *self / other
-    }
+    //     pub const fn one() -> Self {
+    //         Self::new(1.0, 1.0, 1.0)
+    //     }
+    //     pub const fn basis() -> Self {
+    //         Self::new(1.0, 1.0, 1.0)
+    //     }
+    //     pub fn normalize_with(&self, other: Self) -> Self {
+    //         *self / other
+    //     }
 }
 
 impl Default for Vector3 {
     fn default() -> Self {
-        Self::new(0.0, 0.0, 0.0)
+        Self(f32x4::splat(0.0))
     }
 }
 

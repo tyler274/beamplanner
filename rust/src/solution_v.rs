@@ -33,14 +33,32 @@ fn possible_connections(users: &Users, sats: &Sats) -> (UserSatsMap, SatsUsersMa
     let mut by_user: UserSatsMap = vec![Vec::with_capacity(sats.len()); users.len() + 1];
     let mut by_sat: SatsUsersMap = vec![Vec::with_capacity(users.len()); sats.len() + 1];
 
-    for (sat_id, sat_pos) in sats.iter().enumerate() {
-        for (user_id, user_pos) in users.iter().enumerate() {
-            let angle = Vector3::zero().angle_between(user_pos, &(sat_pos - user_pos));
-            if angle <= MAX_ALLOWABLE_BEAM_ANGLE {
-                by_user.get_mut(user_id).unwrap().push(Sat(sat_id as u64));
-                by_sat.get_mut(sat_id).unwrap().push(User(user_id as u64));
-            }
-        }
+    let users_n_sats = sats
+        .par_iter()
+        .enumerate()
+        .map(|(sat_id, sat_pos)| {
+            users
+                .par_iter()
+                .enumerate()
+                .filter_map(|(user_id, user_pos)| {
+                    if user_pos.dot(*sat_pos) < 0.0 {
+                        return None;
+                    }
+                    let angle = Vector3::zero().angle_between(user_pos, &(sat_pos - user_pos));
+                    if angle <= MAX_ALLOWABLE_BEAM_ANGLE {
+                        Some((sat_id, user_id))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+        })
+        .flatten()
+        .collect::<Vec<_>>();
+
+    for (sat, user) in users_n_sats {
+        by_user[user].push(Sat(sat as u64));
+        by_sat[sat].push(User(user as u64));
     }
 
     (by_user, by_sat)
