@@ -51,26 +51,26 @@ def parse(path):
 # Connection = (Color, SatId, UserId)
 
 def possible_connections(sats, users, colors, max_user_angle):
-    by_user = collections.defaultdict(set)
-    by_sat = collections.defaultdict(set)
+    by_user = [[] for _ in range(len(users)+1)]
+    by_sat = [[] for _ in range(len(sats)+1)]
     for sat_id, sat_pos in sats.items():
         for user_id, user_pos in users.items():
             a = rad2deg(angle(user_pos, sub(sat_pos, user_pos)))
             if a < max_user_angle:
-                by_user[user_id].add(sat_id)
-                by_sat[sat_id].add(user_id)
+                by_user[user_id].append(sat_id)
+                by_sat[sat_id].append(user_id)
     return by_sat, by_user
 
 def get_interferences(sats, users, conns_by_sat, min_beam_separation):
-    by_sat_user = collections.defaultdict(lambda: collections.defaultdict(set))
-    for sat_id, sat_users in conns_by_sat.items():
+    by_sat_user = [[[] for _ in range(len(users)+1)] for _ in range(len(sats)+1)]
+    for sat_id, sat_users in enumerate(conns_by_sat):
         for user1_id, user2_id in itertools.combinations(sat_users, 2):
             if rad2deg(angle(
                 sub(users[user1_id], sats[sat_id]),
                 sub(users[user2_id], sats[sat_id])
             )) < min_beam_separation:
-                by_sat_user[sat_id][user1_id].add(user2_id)
-                by_sat_user[sat_id][user2_id].add(user1_id)
+                by_sat_user[sat_id][user1_id].append(user2_id)
+                by_sat_user[sat_id][user2_id].append(user1_id)
     return by_sat_user
 
 
@@ -79,28 +79,28 @@ def _solve(users, sats, colors=4, max_user_angle=45, min_beam_separation=10, max
     interference_by_sat_user = get_interferences(sats, users, conns_by_sat, min_beam_separation)
 
     available_conns = set()
-    for sat_id, sat_users in conns_by_sat.items():
+    for sat_id, sat_users in enumerate(conns_by_sat):
         for user_id in sat_users:
             for i in range(colors):
                 available_conns.add((i, sat_id, user_id))
-    solution_by_sat = collections.defaultdict(set)
+    sat_conn_count = [0 for _ in range(len(sats)+1)]
     solution = {} # user -> [sat, color]
     while len(available_conns) > 0:
-        conn = available_conns.pop()
-        solution_by_sat[conn[1]].add(conn)
-        solution[conn[2]] = (conn[1], Color(conn[0]+1))
+        color, sat_id, user_id = available_conns.pop()
+        sat_conn_count[sat_id] += 1
+        solution[user_id] = (sat_id, Color(color+1))
         # dont add interfering connections
-        for user2_id in interference_by_sat_user[conn[1]][conn[2]]:
-            available_conns.discard((conn[0], conn[1], user2_id))
+        for user2_id in interference_by_sat_user[sat_id][user_id]:
+            available_conns.discard((color, sat_id, user2_id))
         # don't reconnect the same user
-        for sat_id in conns_by_user[conn[2]]:
+        for sat2_id in conns_by_user[user_id]:
             for i in range(colors):
-                available_conns.discard((i, sat_id, conn[2]))
+                available_conns.discard((i, sat2_id, user_id))
         # if satellite is at capacity, drop its remaining possible connections
-        if len(solution_by_sat[conn[1]]) >= max_conn_per_sat:
+        if sat_conn_count[sat_id] >= max_conn_per_sat:
             for i in range(colors):
-                for user_id in conns_by_sat[conn[1]]:
-                    available_conns.discard((i, conn[1], user_id))
+                for user2_id in conns_by_sat[sat_id]:
+                    available_conns.discard((i, sat_id, user2_id))
     return solution
 
 def solve(users, sats):
