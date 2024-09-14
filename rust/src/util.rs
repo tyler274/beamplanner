@@ -4,7 +4,6 @@ use std::{
     ops::{Add, Deref, Div, Sub},
 };
 
-
 use std::simd::f32x4;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -133,6 +132,14 @@ impl<'a, 'b> Sub<&'b Vector3> for &'a Vector3 {
     type Output = Vector3;
 
     fn sub(self, rhs: &'b Vector3) -> Vector3 {
+        self._sub(rhs)
+    }
+}
+
+impl<'a, 'b> Sub<&'b mut Vector3> for &'a mut Vector3 {
+    type Output = Vector3;
+
+    fn sub(self, rhs: &'b mut Vector3) -> Vector3 {
         self._sub(rhs)
     }
 }

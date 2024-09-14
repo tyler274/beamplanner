@@ -3,6 +3,7 @@
 #![feature(portable_simd)]
 // mod solution;
 pub mod solution_e;
+pub mod solution_v;
 mod test;
 mod test_util;
 mod util;
@@ -37,7 +38,8 @@ pub fn main() {
     );
 
     let start = std::time::Instant::now();
-    let solution = solution_e::solve(&scenario.users, &scenario.sats);
+    // let solution = solution_e::solve(&scenario.users, &scenario.sats);
+    let solution = solution_v::solve(&scenario.users, &scenario.sats);
 
     let solution = BTreeMap::from_iter(solution.iter().map(|(k, v)| (*k, *v)));
     let duration = start.elapsed();

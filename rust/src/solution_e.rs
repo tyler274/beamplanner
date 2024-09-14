@@ -66,19 +66,44 @@ fn get_interferences(
                         .get(sat_id)
                         .unwrap()
                         .angle_between(user_pos, other_user_pos);
+                    // TODO: Hoist this outside the loop to avoid a branch during parallel computation
                     if angle < MINIMUM_BEAM_ANGLE {
                         interferences
                             .entry(*user_id)
                             .or_insert_with(Default::default)
                             .insert(*other_user_id);
-                        interferences
-                            .entry(*other_user_id)
-                            .or_insert_with(Default::default)
-                            .insert(*user_id);
+                        // interferences
+                        //     .entry(*other_user_id)
+                        //     .or_insert_with(Default::default)
+                        //     .insert(*user_id);
                     }
                 }
             }
         }
+        for user_id in sat_users {
+            let user_pos = users.get(user_id).unwrap();
+            for other_user_id in sat_users {
+                if user_id != other_user_id {
+                    let other_user_pos = users.get(other_user_id).unwrap();
+                    let angle = sats
+                        .get(sat_id)
+                        .unwrap()
+                        .angle_between(user_pos, other_user_pos);
+                    // TODO: Hoist this outside the loop to avoid a branch during parallel computation
+                    if angle < MINIMUM_BEAM_ANGLE {
+                        interferences
+                            .entry(*user_id)
+                            .or_insert_with(Default::default)
+                            .insert(*other_user_id);
+                        // interferences
+                        //     .entry(*other_user_id)
+                        //     .or_insert_with(Default::default)
+                        //     .insert(*user_id);
+                    }
+                }
+            }
+        }
+        // Hoist the angle check here
         by_sat_user.insert(*sat_id, interferences);
     }
 

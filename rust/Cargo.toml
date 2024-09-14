@@ -7,6 +7,8 @@ edition = "2021"
 debug = true
 
 [dependencies]
+rayon = "1.5.1"
+
 
 # [[test]]
 # bench = true
