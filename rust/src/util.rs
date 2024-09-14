@@ -4,6 +4,9 @@ use std::{
     ops::{Add, Deref, Div, Sub},
 };
 
+
+use std::simd::f32x4;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector3 {
     pub x: f32,

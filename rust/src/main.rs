@@ -1,16 +1,23 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
-mod solution;
+#![feature(portable_simd)]
+// mod solution;
+pub mod solution_e;
 mod test;
 mod test_util;
 mod util;
 
-use std::{env, io::Write, process::exit};
+use std::{
+    collections::{BTreeMap, HashMap},
+    env,
+    io::Write,
+    process::exit,
+};
 
 use test::TIMEOUT;
 use test_util::{check, BOLD, GRAY, GREEN, RED, RESET, YELLOW};
 
-fn main() {
+pub fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 3 {
         print!("USAGE: {} OUT_PATH TEST_CASE\n", args[0]);
@@ -23,19 +30,21 @@ fn main() {
     let scenario = test::Scenario::new(test_case).unwrap();
 
     print!(
-        "{GRAY}Scenario: {RESET}{} coverage ({} users, {} sats){RESET}",
+        "{GRAY}Scenario: {RESET}{}% coverage ({} users, {} sats){RESET}\n",
         100.0 * scenario.min_coverage,
         scenario.users.len(),
         scenario.sats.len(),
     );
 
     let start = std::time::Instant::now();
-    let solution = solution::solve(scenario.users.clone(), scenario.sats.clone());
+    let solution = solution_e::solve(&scenario.users, &scenario.sats);
+
+    let solution = BTreeMap::from_iter(solution.iter().map(|(k, v)| (*k, *v)));
     let duration = start.elapsed();
     let covered = 1.0 * solution.len() as f32 / scenario.users.len() as f32;
 
     print!(
-        "{GRAY}Solution: {RESET}{BOLD}{}{} coverage ({} users) in {}{BOLD}{}s{RESET}",
+        "{GRAY}Solution: {RESET}{BOLD}{}{}% coverage ({} users) in {}{BOLD}{}s{RESET}\n",
         if covered >= scenario.min_coverage {
             GREEN
         } else {
@@ -67,6 +76,12 @@ fn main() {
     )
     .unwrap();
 
-    check(duration < TIMEOUT, "Took too long to produce a solution");
+    check(duration < TIMEOUT, "Took too long to produce a solution\n");
     scenario.check(&solution);
+
+    if covered >= scenario.min_coverage {
+        exit(0);
+    } else {
+        exit(1);
+    }
 }

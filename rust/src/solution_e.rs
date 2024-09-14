@@ -1,6 +1,6 @@
 use crate::util::{Color, Sat, User, Vector3};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     hash::Hash,
 };
 
@@ -10,26 +10,36 @@ const MAX_ALLOWABLE_BEAM_ANGLE: f32 = 45.0;
 const MAX_ALLOWED_USERS: usize = 32;
 const MAX_COLOR_OPTIONS: usize = 4;
 
-type Users = HashMap<User, Vector3>;
-type Sats = HashMap<Sat, Vector3>;
+type Map<K, V> = HashMap<K, V>;
+type Set<K> = HashSet<K>;
 
-fn possible_connections(
-    users: &Users,
-    sats: &Sats,
-) -> (HashMap<User, HashSet<Sat>>, HashMap<Sat, HashSet<User>>) {
-    let mut by_user = HashMap::new();
-    let mut by_sat = HashMap::new();
+type Users = Map<User, Vector3>;
+type Sats = Map<Sat, Vector3>;
+
+type UserSatsMap = Map<User, Set<Sat>>;
+type SatsUsersMap = Map<Sat, Set<User>>;
+
+type UserUserMap = Map<User, Set<User>>;
+type SatUserInterferenceMap = Map<Sat, UserUserMap>;
+
+type SolutionMap = Map<User, (Sat, Color)>;
+
+type AvailaibleConnections = Set<(Color, User, Sat)>;
+
+fn possible_connections(users: &Users, sats: &Sats) -> (UserSatsMap, SatsUsersMap) {
+    let mut by_user: UserSatsMap = Default::default();
+    let mut by_sat: SatsUsersMap = Default::default();
     for (sat_id, sat_pos) in sats.iter() {
         for (user_id, user_pos) in users.iter() {
             let angle = Vector3::zero().angle_between(user_pos, &(sat_pos - user_pos));
             if angle <= MAX_ALLOWABLE_BEAM_ANGLE {
                 by_user
                     .entry(*user_id)
-                    .or_insert_with(HashSet::new)
+                    .or_insert_with(Default::default)
                     .insert(*sat_id);
                 by_sat
                     .entry(*sat_id)
-                    .or_insert_with(HashSet::new)
+                    .or_insert_with(Default::default)
                     .insert(*user_id);
             }
         }
@@ -41,12 +51,12 @@ fn possible_connections(
 fn get_interferences(
     users: &Users,
     sats: &Sats,
-    conns_by_sat: &HashMap<Sat, HashSet<User>>,
-) -> HashMap<Sat, HashMap<User, HashSet<User>>> {
-    let mut by_sat_user = HashMap::new();
+    conns_by_sat: &SatsUsersMap,
+) -> SatUserInterferenceMap {
+    let mut by_sat_user: SatUserInterferenceMap = Default::default();
 
     for (sat_id, sat_users) in conns_by_sat.iter() {
-        let mut interferences = HashMap::new();
+        let mut interferences: UserUserMap = Default::default();
         for user_id in sat_users {
             let user_pos = users.get(user_id).unwrap();
             for other_user_id in sat_users {
@@ -59,11 +69,11 @@ fn get_interferences(
                     if angle < MINIMUM_BEAM_ANGLE {
                         interferences
                             .entry(*user_id)
-                            .or_insert_with(HashSet::new)
+                            .or_insert_with(Default::default)
                             .insert(*other_user_id);
                         interferences
                             .entry(*other_user_id)
-                            .or_insert_with(HashSet::new)
+                            .or_insert_with(Default::default)
                             .insert(*user_id);
                     }
                 }
@@ -75,20 +85,16 @@ fn get_interferences(
     by_sat_user
 }
 
-pub fn solve(
-    users: &BTreeMap<User, Vector3>,
-    sats: &BTreeMap<Sat, Vector3>,
-) -> HashMap<User, (Sat, Color)> {
-    let mut solution: HashMap<User, (Sat, Color)> = HashMap::new();
+pub fn solve(users: &HashMap<User, Vector3>, sats: &HashMap<Sat, Vector3>) -> SolutionMap {
+    let mut solution: SolutionMap = Default::default();
 
-    // TODO: Test BTreeMap instead of HashMap
-    let users = HashMap::from_iter(users.iter().map(|(k, v)| (*k, *v)));
-    let sats = HashMap::from_iter(sats.iter().map(|(k, v)| (*k, *v)));
+    // let users = HashMap::from_iter(users.iter().map(|(k, v)| (*k, *v)));
+    // let sats = HashMap::from_iter(sats.iter().map(|(k, v)| (*k, *v)));
 
     let (conns_by_user, conns_by_sat) = possible_connections(&users, &sats);
     let interference_by_sat_user = get_interferences(&users, &sats, &conns_by_sat);
 
-    let mut available_conns = HashSet::new();
+    let mut available_conns: AvailaibleConnections = Default::default();
     for (sat_id, sat_users) in conns_by_sat.iter() {
         for user_id in sat_users {
             for i in 0..MAX_COLOR_OPTIONS {
@@ -97,7 +103,7 @@ pub fn solve(
         }
     }
 
-    let mut solution_by_sat = HashMap::new();
+    let mut solution_by_sat: SatsUsersMap = Default::default();
 
     while available_conns.len() > 0 {
         let (color, user_id, sat_id) = *available_conns.iter().next().unwrap();
@@ -105,7 +111,7 @@ pub fn solve(
 
         solution_by_sat
             .entry(sat_id)
-            .or_insert_with(HashSet::new)
+            .or_insert_with(Default::default)
             .insert(user_id);
 
         solution
@@ -121,7 +127,7 @@ pub fn solve(
             .get(&sat_id)
             .unwrap()
             .get(&user_id)
-            .unwrap_or(&HashSet::new())
+            .unwrap_or(&Default::default())
         {
             available_conns.remove(&(color, *user2_id, sat_id));
         }

@@ -41,7 +41,7 @@ enum SortedValues {
 //     (user_shift, sat_shift)
 // }
 
-fn sum_sats(valid_connections: ConnectionsMatrix) -> SatsSum {
+fn sum_sats(valid_connections: &ConnectionsMatrix) -> SatsSum {
     let mut sat_sums: BTreeMap<Sat, u64> = BTreeMap::new();
     for (sat, user_color) in valid_connections.iter() {
         for (user, color) in user_color.iter() {
@@ -59,7 +59,7 @@ fn sum_sats(valid_connections: ConnectionsMatrix) -> SatsSum {
     sat_sums
 }
 
-fn sum_users(valid_connections: ConnectionsMatrix) -> UsersSum {
+fn sum_users(valid_connections: &ConnectionsMatrix) -> UsersSum {
     let mut users_sums: BTreeMap<User, u64> = BTreeMap::new();
     for user in valid_connections.values().next().unwrap().keys() {
         for (sat, _) in valid_connections.iter() {
@@ -148,15 +148,15 @@ fn sort(values: UnsortedValues) -> SortedValues {
     }
 }
 
-fn get_sorted_values(users: Users, sats: Sats) -> (UsersSorted, SatsSorted) {
+fn get_sorted_values(users: &Users, sats: &Sats) -> (UsersSorted, SatsSorted) {
     // TODO: Rework the BTreeMap to sort the values directly?
     // let users_sorted: UsersSorted = sort(users.into_values().collect());
     // let sats_sorted: SatsSorted = sort(sats.into_values().collect());
     if let SortedValues::Users(users_sorted) =
-        sort(UnsortedValues::Users(users.into_values().collect()))
+        sort(UnsortedValues::Users(users.clone().into_values().collect()))
     {
         if let SortedValues::Sats(sats_sorted) =
-            sort(UnsortedValues::Sats(sats.into_values().collect()))
+            sort(UnsortedValues::Sats(sats.clone().into_values().collect()))
         {
             return (users_sorted, sats_sorted);
         } else {
@@ -168,36 +168,43 @@ fn get_sorted_values(users: Users, sats: Sats) -> (UsersSorted, SatsSorted) {
 }
 
 fn initialize_colors(
-    users: UsersSorted,
-    sats: SatsSorted,
     valid_connections: &mut ConnectionsMatrix,
+    users: &UsersSorted,
+    sats: &SatsSorted,
 ) {
     let mut color = Color::A;
     for user_tuple in users {
-        for sat_tuple in &sats {
-            if valid_connections[&sat_tuple.0][&user_tuple.0] == Color::Init {
-                valid_connections
-                    .entry(sat_tuple.0)
-                    .or_insert(Default::default())
-                    .entry(user_tuple.0)
-                    .and_modify(|curr| *curr = color);
-                color = color.next();
-            }
+        for sat_tuple in sats {
+            valid_connections
+                .entry(sat_tuple.0)
+                .or_insert(Default::default())
+                .entry(user_tuple.0)
+                .and_modify(|curr| *curr = color);
+            color = color.next();
         }
     }
 }
 
 fn validate_satelite_congestion(
-    users: UsersSorted,
-    sats: SatsSorted,
     valid_connections: &mut ConnectionsMatrix,
+    users: &UsersSorted,
+    sats: &SatsSorted,
     shift_colors: bool,
 ) {
     for sat_tuple in sats {
         // Construct a list with users that have valid connections to this satelite
         let users_with_valid_connections: Vec<(User, f32, Position)> = users
             .iter()
-            .filter(|user_tuple| valid_connections[&sat_tuple.0][&user_tuple.0] != Color::Init)
+            .filter(|user_tuple| {
+                if let Some(user) = valid_connections.get(&sat_tuple.0) {
+                    if let Some(color) = user.get(&user_tuple.0) {
+                        return *color != Color::Init;
+                    }
+                } else {
+                    return false;
+                }
+                false
+            })
             .map(|&user_tuple| user_tuple)
             .collect();
 
@@ -236,31 +243,106 @@ fn validate_satelite_congestion(
 }
 
 fn remove_excess_satelites_per_user(
-    valid_connections: ConnectionsMatrix,
-    users: UsersSorted,
-    sats: SatsSorted,
+    valid_connections: &mut ConnectionsMatrix,
+    users: &UsersSorted,
+    sats: &SatsSorted,
 ) {
-    let sat_totals = sum_sats(valid_connections);
+    let user_totals = sum_users(valid_connections);
 
     // Remove extraneous satelites per user, if more than one satelite is assigned
     for user in users {
-        // let user_sats = sat_totals[user.0];
+        let user_sats = user_totals.get(&user.0);
+        // User has extra sats
+        if let Some(user_sats) = user_sats {
+            // Construct a list of all valid satelites for said user
+            let mut assigned_sats: Vec<Sat> = valid_connections
+                .iter()
+                .filter_map(|(sat, user_color)| {
+                    if user_color[&user.0] != Color::Init {
+                        Some(*sat)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            // Sort the assigned satellites by their color
+            assigned_sats.sort_by(|sat_1, sat_2| {
+                valid_connections[sat_1][&user.0]
+                    .partial_cmp(&valid_connections[sat_2][&user.0])
+                    .unwrap()
+            });
+
+            // Remove the extra satellites, keeping the one with the highest color
+            for sat in assigned_sats.iter().take(*user_sats as usize - 1) {
+                valid_connections.entry(*sat).and_modify(|sat| {
+                    sat.entry(user.0).and_modify(|color| *color = Color::Init);
+                });
+            }
+        }
     }
 }
 
 fn remove_excess_users_per_satellite(
-    valid_connections: ConnectionsMatrix,
-    users: UsersSorted,
-    sats: SatsSorted,
+    valid_connections: &mut ConnectionsMatrix,
+    users: &UsersSorted,
+    sats: &SatsSorted,
 ) {
+    let sat_totals = sum_sats(&valid_connections);
+
+    // Remove extraneous users per satellite, if more than one user is assigned
+    for sat in sats {
+        if let Some(sat_users) = sat_totals.get(&sat.0) {
+            // Satellite has extra users
+            if *sat_users > MAX_ALLOWED_USERS as u64 {
+                // Construct a list of all valid users for said satellite
+                let mut assigned_users: Vec<User> = valid_connections[&sat.0]
+                    .iter()
+                    .filter_map(|(user, color)| {
+                        if *color != Color::Init {
+                            Some(*user)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                // Sort the assigned users by their color
+                assigned_users.sort_by(|user_1, user_2| {
+                    valid_connections[&sat.0][user_1]
+                        .partial_cmp(&valid_connections[&sat.0][user_2])
+                        .unwrap()
+                });
+
+                // Remove the extra users, keeping the one with the highest color
+                for user in assigned_users.iter().take(*sat_users as usize - 1) {
+                    valid_connections.entry(sat.0).and_modify(|sat| {
+                        sat.entry(*user).and_modify(|color| *color = Color::Init);
+                    });
+                }
+            }
+        }
+    }
 }
 
 fn format_solution(
-    valid_connections: ConnectionsMatrix,
-    users: UsersSorted,
-    sats: SatsSorted,
+    valid_connections: &ConnectionsMatrix,
+    users: &UsersSorted,
+    sats: &SatsSorted,
 ) -> BTreeMap<User, (Sat, Color)> {
-    let solution: BTreeMap<User, (Sat, Color)> = BTreeMap::new();
+    let mut solution: BTreeMap<User, (Sat, Color)> = BTreeMap::new();
+
+    for user in users {
+        for sat in sats {
+            if let Some(user_map) = valid_connections.get(&sat.0) {
+                if let Some(color) = user_map.get(&user.0) {
+                    if *color != Color::Init {
+                        solution.insert(user.0, (sat.0, *color));
+                    }
+                }
+            }
+        }
+    }
 
     solution
 }
@@ -280,12 +362,34 @@ fn format_solution(
 ///
 /// A `BTreeMap` containing users along with their assigned satellite and color.
 pub fn solve(
-    users: BTreeMap<User, Vector3>,
-    sats: BTreeMap<Sat, Vector3>,
+    users: &BTreeMap<User, Vector3>,
+    sats: &BTreeMap<Sat, Vector3>,
 ) -> BTreeMap<User, (Sat, Color)> {
-    let mut solution = BTreeMap::new();
-
+    // Get sorted values
     let (users_sorted, sats_sorted) = get_sorted_values(users, sats);
+
+    // Initialize valid connections matrix
+    let mut valid_connections = initialize_valid_connections(sats.len(), users.len());
+
+    initialize_colors(&mut valid_connections, &users_sorted, &sats_sorted);
+
+    remove_excess_satelites_per_user(&mut valid_connections, &users_sorted, &sats_sorted);
+
+    let iterations = 2;
+    let shift_color = true;
+
+    for _ in 0..iterations {
+        validate_satelite_congestion(
+            &mut valid_connections,
+            &users_sorted,
+            &sats_sorted,
+            shift_color,
+        );
+    }
+
+    remove_excess_users_per_satellite(&mut valid_connections, &users_sorted, &sats_sorted);
+    // tree to hold the solution
+    let solution = format_solution(&valid_connections, &users_sorted, &sats_sorted);
 
     solution
 }

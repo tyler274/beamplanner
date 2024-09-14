@@ -8,8 +8,8 @@ use crate::util::{Color, Sat, User, Vector3};
 pub const TIMEOUT: Duration = Duration::from_secs(600);
 
 pub struct Scenario {
-    pub sats: BTreeMap<Sat, Vector3>,
-    pub users: BTreeMap<User, Vector3>,
+    pub sats: HashMap<Sat, Vector3>,
+    pub users: HashMap<User, Vector3>,
     pub min_coverage: f32,
 }
 
@@ -137,8 +137,8 @@ impl Scenario {
 impl Default for Scenario {
     fn default() -> Self {
         Self {
-            sats: BTreeMap::new(),
-            users: BTreeMap::new(),
+            sats: Default::default(),
+            users: Default::default(),
             min_coverage: 1.0,
         }
     }
