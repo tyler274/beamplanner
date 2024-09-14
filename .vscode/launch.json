@@ -1,0 +1,118 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(Py) 2 Users",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/py/test.py",
+            "args": [
+                "output",
+                "${workspaceFolder}/test/01_two_users.txt"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "(UDB) 2 Users",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/rust/target/debug/rust",
+            "args": [
+                "ouput",
+                "${workspaceFolder}/test/01_two_users.txt"
+            ],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "targetArchitecture": "x64",
+            "miDebuggerPath": "udb",
+            "miDebuggerArgs": "",
+            "logging": {
+                "trace": false,
+                "traceResponse": false,
+                "engineLogging": false
+            },
+            "udb": "live",
+            "timezone": "",
+            "udbConfiguration": {}
+        },
+        {
+            "name": "(UDB) Equatorial Band",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/rust/target/debug/rust",
+            "args": [
+                "ouput",
+                "${workspaceFolder}/test/03_equatorial_band.txt"
+            ],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "targetArchitecture": "x64",
+            "miDebuggerPath": "udb",
+            "miDebuggerArgs": "",
+            "logging": {
+                "trace": false,
+                "traceResponse": false,
+                "engineLogging": false
+            },
+            "udb": "live",
+            "timezone": "",
+            "udbConfiguration": {}
+        },
+        {
+            "name": "(UDB) 100k Users",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/rust/target/debug/rust",
+            "args": [
+                "ouput",
+                "${workspaceFolder}/test/11_one_hundred_thousand_users.txt"
+            ],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "targetArchitecture": "x64",
+            "miDebuggerPath": "udb",
+            "miDebuggerArgs": "",
+            "logging": {
+                "trace": false,
+                "traceResponse": false,
+                "engineLogging": false
+            },
+            "udb": "live",
+            "timezone": "",
+            "udbConfiguration": {}
+        }
+    ]
+}
