@@ -59,16 +59,26 @@ def possible_connections(sats_v, users_v, colors, max_user_angle):
         for user_id, user_pos in enumerate(users_v):
             if user_pos is None:
                 continue
+            if dot(user_pos, sat_pos) < 0:
+                continue
             a = rad2deg(angle(user_pos, sub(sat_pos, user_pos)))
             if a < max_user_angle:
                 by_user[user_id].append(sat_id)
                 by_sat[sat_id].append(user_id)
     return by_sat, by_user
 
+FAC = math.sin(10/180*math.pi) * 1.25
 def get_interferences(sats_v, users_v, conns_by_sat, min_beam_separation):
     by_sat_user = [[[] for _ in range(len(users_v)+1)] for _ in range(len(sats_v)+1)]
     for sat_id, sat_users in enumerate(conns_by_sat):
         for user1_id, user2_id in itertools.combinations(sat_users, 2):
+            #u1x, u1y, u1z = users_v[user1_id]
+            #u2x, u2y, u2z = users_v[user2_id]
+            #sx, sy, sz = sats_v[sat_id]
+
+            #user2_sqdist = (u1x-u2x)*(u1x-u2x) + (u1y-u2y)*(u1y-u2y) + (u1z-u2z)*(u1z-u2z)
+            #sat_sqdist = (sx-u1x)*(sx-u1x) + (sy-u1y)*(sy-u1y) + (sz-u1z)*(sz-u1z)
+            #if math.sqrt(user2_sqdist) < FAC * math.sqrt(sat_sqdist):
             if rad2deg(angle(
                 sub(users_v[user1_id], sats_v[sat_id]),
                 sub(users_v[user2_id], sats_v[sat_id])
