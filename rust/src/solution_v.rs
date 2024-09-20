@@ -78,7 +78,7 @@ fn get_interferences(
         //     Vec::with_capacity(sat_users.len() * sat_users.len());
         let angles: Vec<(&User, &User, f32)> = sat_users
             .par_iter()
-            .map(|user_id| {
+            .flat_map(|user_id| {
                 let user_pos = users.get(user_id.0 as usize).unwrap();
                 let angles = sat_users
                     .par_iter()
@@ -93,7 +93,6 @@ fn get_interferences(
                     .collect::<Vec<_>>();
                 angles
             })
-            .flatten()
             .collect();
         for angle in angles {
             if angle.2 < MINIMUM_BEAM_ANGLE {
@@ -110,7 +109,7 @@ pub fn solve(users: &HashMap<User, Vector3>, sats: &HashMap<Sat, Vector3>) -> So
     for (user, pos) in users.iter() {
         users_vec[user.0 as usize] = *pos;
     }
-    let mut sats_vec = vec![Vector3::zero(); sats.len() + 1];
+    let mut sats_vec = vec![Vector3::zero(); sa4ts.len() + 1];
     for (sat, pos) in sats.iter() {
         sats_vec[sat.0 as usize] = *pos;
     }
@@ -130,6 +129,22 @@ pub fn solve(users: &HashMap<User, Vector3>, sats: &HashMap<Sat, Vector3>) -> So
             }
         }
     }
+
+    // Parallel Iterator version of the above
+    // let mut available_conns: AvailaibleConnections = conns_by_sat
+    //     .par_iter()
+    //     .enumerate()
+    //     .flat_map(|(sat_id, sat_users)| {
+    //         sat_users
+    //             .par_iter()
+    //             .flat_map(|user_id| {
+    //                 (1..=MAX_COLOR_OPTIONS)
+    //                     .map(|i| (Color::from_id(i as i32), *user_id, Sat(sat_id as u64)))
+    //                     .collect::<Vec<_>>()
+    //             })
+    //             .collect::<Vec<_>>()
+    //     })
+    //     .collect();
 
     let mut sat_conn_count = vec![0; sats.len() + 1];
     let mut solution: SolutionMap = Default::default();
@@ -176,3 +191,65 @@ pub fn solve(users: &HashMap<User, Vector3>, sats: &HashMap<Sat, Vector3>) -> So
     }
     solution
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     #[test]
+//     fn test_solve_no_users_or_sats() {
+//         let users = HashMap::new();
+//         let sats = HashMap::new();
+//         let solution = solve(&users, &sats);
+//         assert!(solution.is_empty());
+//     }
+
+//     #[test]
+//     fn test_solve_single_user_and_sat() {
+//         let mut users = HashMap::new();
+//         let mut sats = HashMap::new();
+//         users.insert(User(1), Vector3::new(1.0, 0.0, 0.0));
+//         sats.insert(Sat(1), Vector3::new(1.0, 0.0, 0.0));
+//         let solution = solve(&users, &sats);
+//         assert_eq!(solution.len(), 1);
+//         assert_eq!(solution.get(&User(1)), Some(&(Sat(1), Color::from_id(1))));
+//     }
+
+//     #[test]
+//     fn test_solve_multiple_users_and_sats() {
+//         let mut users = HashMap::new();
+//         let mut sats = HashMap::new();
+//         users.insert(User(1), Vector3::new(1.0, 0.0, 0.0));
+//         users.insert(User(2), Vector3::new(0.0, 1.0, 0.0));
+//         sats.insert(Sat(1), Vector3::new(100.0, 100.0, 100.0));
+//         sats.insert(Sat(2), Vector3::new(0.0, 1.0, 0.0));
+//         let solution = solve(&users, &sats);
+//         assert_eq!(solution.len(), 2);
+//         assert!(solution.contains_key(&User(1)));
+//         assert!(solution.contains_key(&User(2)));
+//     }
+
+//     #[test]
+//     fn test_solve_with_interference() {
+//         let mut users = HashMap::new();
+//         let mut sats = HashMap::new();
+//         users.insert(User(1), Vector3::new(1.0, 0.0, 0.0));
+//         users.insert(User(2), Vector3::new(1.0, 0.1, 0.0));
+//         sats.insert(Sat(1), Vector3::new(1.0, 0.0, 0.0));
+//         let solution = solve(&users, &sats);
+//         assert_eq!(solution.len(), 1);
+//         assert!(solution.contains_key(&User(1)) || solution.contains_key(&User(2)));
+//     }
+
+//     #[test]
+//     fn test_solve_max_users_per_sat() {
+//         let mut users = HashMap::new();
+//         let mut sats = HashMap::new();
+//         for i in 1..=MAX_ALLOWED_USERS + 1 {
+//             users.insert(User(i as u64), Vector3::new(1.0, 0.0, 0.0));
+//         }
+//         sats.insert(Sat(1), Vector3::new(1.0, 0.0, 0.0));
+//         let solution = solve(&users, &sats);
+//         assert_eq!(solution.len(), MAX_ALLOWED_USERS);
+//     }
+// }

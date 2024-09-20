@@ -3,7 +3,13 @@ use std::process::Command;
 #[test]
 fn two_users() {
     let output = Command::new("cargo")
-        .args(&["run", "--bin", "rust", "output", "../test/01_two_users.txt"])
+        .args(&[
+            "run",
+            "--bin",
+            "beam_planner",
+            "output",
+            "../test/01_two_users.txt",
+        ])
         .output()
         .expect("Failed to execute command");
 
@@ -19,7 +25,7 @@ fn five_users() {
         .args(&[
             "run",
             "--bin",
-            "rust",
+            "beam_planner",
             "output",
             "../test/02_five_users.txt",
         ])
@@ -38,7 +44,7 @@ fn equatorial_band_users() {
         .args(&[
             "run",
             "--bin",
-            "rust",
+            "beam_planner",
             "output",
             "../test/03_equatorial_band.txt",
         ])
@@ -57,7 +63,7 @@ fn five_thousand_users() {
         .args(&[
             "run",
             "--bin",
-            "rust",
+            "beam_planner",
             "output",
             "../test/04_five_thousand.txt",
         ])
@@ -76,7 +82,7 @@ fn fifty_thousand_users_low_coverage() {
         .args(&[
             "run",
             "--bin",
-            "rust",
+            "beam_planner",
             "output",
             "../test/05_fifty_thousand_low_coverage.txt",
         ])
@@ -95,7 +101,7 @@ fn ten_thousand_users() {
         .args(&[
             "run",
             "--bin",
-            "rust",
+            "beam_planner",
             "output",
             "../test/06_ten_thousand.txt",
         ])
@@ -114,7 +120,7 @@ fn one_hundred_thousand_users() {
         .args(&[
             "run",
             "--bin",
-            "rust",
+            "beam_planner",
             "output",
             "../test/11_one_hundred_thousand_users.txt",
         ])

@@ -1,5 +1,6 @@
+cargo-features = ["profile-rustflags"]
 [package]
-name = "rust"
+name = "beam_planner"
 version = "0.1.0"
 edition = "2021"
 
