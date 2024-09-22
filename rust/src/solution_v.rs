@@ -109,7 +109,7 @@ pub fn solve(users: &HashMap<User, Vector3>, sats: &HashMap<Sat, Vector3>) -> So
     for (user, pos) in users.iter() {
         users_vec[user.0 as usize] = *pos;
     }
-    let mut sats_vec = vec![Vector3::zero(); sa4ts.len() + 1];
+    let mut sats_vec = vec![Vector3::zero(); sats.len() + 1];
     for (sat, pos) in sats.iter() {
         sats_vec[sat.0 as usize] = *pos;
     }
