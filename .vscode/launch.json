@@ -19,7 +19,7 @@
             "name": "(UDB) 2 Users",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/rust/target/debug/rust",
+            "program": "${workspaceFolder}/rust/target/debug/beam_planner",
             "args": [
                 "ouput",
                 "${workspaceFolder}/test/01_two_users.txt"
@@ -52,7 +52,7 @@
             "name": "(UDB) Equatorial Band",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/rust/target/debug/rust",
+            "program": "${workspaceFolder}/rust/target/debug/beam_planner",
             "args": [
                 "ouput",
                 "${workspaceFolder}/test/03_equatorial_band.txt"
@@ -85,7 +85,7 @@
             "name": "(UDB) 100k Users",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/rust/target/debug/rust",
+            "program": "${workspaceFolder}/rust/target/debug/beam_planner",
             "args": [
                 "ouput",
                 "${workspaceFolder}/test/11_one_hundred_thousand_users.txt"

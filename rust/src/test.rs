@@ -5,7 +5,7 @@ use std::time::Duration;
 use crate::test_util::{check, fail, BOLD, CYAN, GRAY, GREEN, RED, RESET, YELLOW};
 use crate::util::{Color, Sat, User, Vector3};
 
-pub const TIMEOUT: Duration = Duration::from_secs(600);
+pub const TIMEOUT: Duration = Duration::from_secs(60);
 
 pub struct Scenario {
     pub sats: HashMap<Sat, Vector3>,
